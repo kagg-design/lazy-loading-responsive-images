@@ -244,6 +244,13 @@ class Plugin {
 				$dom = $this->modify_audio_markup( $node, $dom );
 				$is_modified = true;
 			}
+
+			if ( ( '1' === $this->settings->load_unveilhooks_plugin ) && $this->has_background_image( $node ) ) {
+				$dom         = $this->modify_background_markup( $node, $dom );
+				$is_modified = true;
+			}
+
+			$is_modified = apply_filters( 'lazy_load_responsive_images_after_filter_markup', $is_modified, $node, $dom );
 		}
 
 		if ( true === $is_modified ) {
@@ -560,6 +567,66 @@ class Plugin {
 		$audio->setAttribute( 'class', $classes );
 
 		return $dom;
+	}
+
+	/**
+	 * Modifies background markup to enable lazy loading.
+	 *
+	 * @param \DOMNode     $node The dom node.
+	 * @param \DOMDocument $dom  \DOMDocument() object of the HTML.
+	 *
+	 * @return \DOMDocument The updated DOM.
+	 */
+	public function modify_background_markup( $node, $dom ) {
+		$styles = $node->getAttribute( 'style' );
+
+		// Get background url.
+		if ( ! preg_match( '/background-image:url\((.+)\)/', $styles, $matches ) ) {
+			return $dom;
+		}
+		$url = $matches[1];
+
+		// Remove background-image from styles.
+		$styles = preg_replace( '/background-image:url\(.+\)/', '', $styles );
+		$node->setAttribute( 'style', $styles );
+
+		// Set data-bg attribute.
+		$node->setAttribute( 'data-bg', $url );
+
+		// Set preload to none.
+//		$node->setAttribute( 'preload', 'none' );
+
+		// Get the classes.
+		$classes = $node->getAttribute( 'class' );
+
+		// Add lazyload class.
+		$classes .= ' lazyload lazypreload';
+
+		// Set the class string.
+		$node->setAttribute( 'class', $classes );
+
+		return $dom;
+	}
+
+	/**
+	 * Check if node has background image.
+	 *
+	 * @param $node
+	 *
+	 * @return bool
+	 */
+	private function has_background_image( $node ) {
+		if ( ! $node->hasAttribute( 'style' ) ) {
+			return false;
+		}
+
+		foreach ( $node->attributes as $attribute ) {
+			if ( ( 'style' === $attribute->name ) && ( 0 === strpos( $attribute->value, 'background-image:url' ) ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
